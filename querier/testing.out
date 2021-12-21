@@ -1,0 +1,239 @@
+cc -Wall -pedantic -std=c11 -ggdb -I../libcs50 -I../common   -c -o querier.o querier.c
+cc -Wall -pedantic -std=c11 -ggdb -I../libcs50 -I../common querier.o ../libcs50/hashtable.o ../libcs50/bag.o ../libcs50/webpage.o ../libcs50/jhash.o ../common/word.o ../common/index.o ../libcs50/set.o ../libcs50/memory.o ../common/pagedir.o ../libcs50/file.o ../libcs50/counters.o  -o querier
+cc -Wall -pedantic -std=c11 -ggdb -I../libcs50 -I../common   -c -o fuzzquery.o fuzzquery.c
+cc -Wall -pedantic -std=c11 -ggdb -I../libcs50 -I../common fuzzquery.o ../libcs50/file.o ../libcs50/memory.o  -o fuzzquery
+bash -v ./testing.sh
+# Testing file for querier
+#
+# Elizabeth Frey
+# Winter 2021
+# CS 50 Lab 6
+
+# testing setup
+export tseoutput="/thayerfs/home/d29265d/shared/tse-output"
+
+
+#### TESTING INDEXER ####
+## ARGUMENT VALIDATION:
+#   wrong number of arguments
+./querier 
+Wrong number of parameters given.
+
+./querier hi
+Wrong number of parameters given.
+
+./querier hi hi hi
+Wrong number of parameters given.
+
+#   directory does not exist
+./querier fakeDir indexFile
+fakeDir does not exists, is not readable, or is not a crawler directory.
+
+#   directory is not a crawler directory
+mkdir notCrawlerDirectory
+./querier notCrawlerDirectory indexFile
+notCrawlerDirectory does not exists, is not readable, or is not a crawler directory.
+rm -r -f notCrawlerDirectory
+
+#   index file does not exist
+./querier $tseoutput/crawler/crawler.data/data1 indexFile
+Error opening indexFile.
+
+## INVALID QUERIES
+# non alphabetic character
+echo hi* > file
+./querier $tseoutput/crawler/crawler.data/data0 $tseoutput/indexer/indexer.data/index.0 < file
+Query: hi*
+Invalid characters found in query.
+---------------------------------------------------
+
+# connectors at the beginning and end
+echo and hi > file
+./querier $tseoutput/crawler/crawler.data/data0 $tseoutput/indexer/indexer.data/index.0 < file
+You cannot have "and" or "or" at the beginning of your query.
+Query: and hi
+---------------------------------------------------
+echo hello or > file
+./querier $tseoutput/crawler/crawler.data/data0 $tseoutput/indexer/indexer.data/index.0 < file
+You cannot have "and" or "or" at the end of your query.
+Query: hello or
+---------------------------------------------------
+
+# multiple connectors in a row
+echo hi and and no > file
+./querier $tseoutput/crawler/crawler.data/data0 $tseoutput/indexer/indexer.data/index.0 < file
+You cannot have two consecutive "and"s or "or"s.
+Query: hi and and no
+---------------------------------------------------
+
+## TESTING WITH GIVEN CRAWLER AND INDEX FILES
+# this will use the crawler and index files from the TSE output folder given
+# in /thayerfs/home/d29265d/shared/tse-output/crawler to 
+# test out different queries useing fuzz testing
+# I will test each one with two different random sets of data
+
+# test 0
+./fuzzquery $tseoutput/indexer/indexer.data/index.0  5 1 > testfile
+./fuzzquery: generating 5 queries from 6 words
+./querier $tseoutput/crawler/crawler.data/data0 $tseoutput/indexer/indexer.data/index.0 < testfile
+Query: index AND wikipedia 
+Found in 1 documents.
+score    1 doc   1 : http://cs50tse.cs.dartmouth.edu/tse/
+---------------------------------------------------
+Query: index OR wikipedia toscrape OR tse toscrape 
+Found in 1 documents.
+score    4 doc   1 : http://cs50tse.cs.dartmouth.edu/tse/
+---------------------------------------------------
+Query: index feb OR wikipedia 
+Found in 1 documents.
+score    3 doc   1 : http://cs50tse.cs.dartmouth.edu/tse/
+---------------------------------------------------
+Query: timestamp index wikipedia OR index OR Faraday OR feb 
+Found in 1 documents.
+score    5 doc   1 : http://cs50tse.cs.dartmouth.edu/tse/
+---------------------------------------------------
+Query: toscrape OR feb feb wikipedia AND feb OR toscrape 
+Found in 1 documents.
+score    3 doc   1 : http://cs50tse.cs.dartmouth.edu/tse/
+---------------------------------------------------
+
+./fuzzquery $tseoutput/indexer/indexer.data/index.0  5 5 > testfile
+./fuzzquery: generating 5 queries from 6 words
+./querier $tseoutput/crawler/crawler.data/data0 $tseoutput/indexer/indexer.data/index.0 < testfile
+Query: tse letters 
+Found in 1 documents.
+score    1 doc   1 : http://cs50tse.cs.dartmouth.edu/tse/
+---------------------------------------------------
+Query: index feb letters 
+Found in 1 documents.
+score    1 doc   1 : http://cs50tse.cs.dartmouth.edu/tse/
+---------------------------------------------------
+Query: tse OR feb AND index 
+Found in 1 documents.
+score    4 doc   1 : http://cs50tse.cs.dartmouth.edu/tse/
+---------------------------------------------------
+Query: wikipedia wikipedia OR letters AND wikipedia 
+Found in 1 documents.
+score    2 doc   1 : http://cs50tse.cs.dartmouth.edu/tse/
+---------------------------------------------------
+Query: letters toscrape AND toscrape 
+Found in 1 documents.
+score    1 doc   1 : http://cs50tse.cs.dartmouth.edu/tse/
+---------------------------------------------------
+
+# test 1
+./fuzzquery $tseoutput/indexer/indexer.data/index.1  5 1 > testfile
+./fuzzquery: generating 5 queries from 174 words
+./querier $tseoutput/crawler/crawler.data/data1 $tseoutput/indexer/indexer.data/index.1 < testfile
+Query: sapiens AND jquery 
+Found in 1 documents.
+score    1 doc   3 : http://cs50tse.cs.dartmouth.edu/tse/toscrape/
+---------------------------------------------------
+Query: business OR copier xavier OR precious tipping 
+Found in 2 documents.
+score    2 doc   3 : http://cs50tse.cs.dartmouth.edu/tse/toscrape/
+score    1 doc   2 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/
+---------------------------------------------------
+Query: made locally OR results 
+Found in 2 documents.
+score    1 doc   3 : http://cs50tse.cs.dartmouth.edu/tse/toscrape/
+score    1 doc   2 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/
+---------------------------------------------------
+Query: timestamp horror write OR hearts OR Faraday OR libertarianism 
+Found in 1 documents.
+score    2 doc   3 : http://cs50tse.cs.dartmouth.edu/tse/toscrape/
+---------------------------------------------------
+Query: xavier OR autobiography erotica health AND ratings OR copy 
+Found in 2 documents.
+score    2 doc   2 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/
+score    1 doc   3 : http://cs50tse.cs.dartmouth.edu/tse/toscrape/
+---------------------------------------------------
+
+./fuzzquery $tseoutput/indexer/indexer.data/index.1  5 5 > testfile
+./fuzzquery: generating 5 queries from 174 words
+./querier $tseoutput/crawler/crawler.data/data1 $tseoutput/indexer/indexer.data/index.1 < testfile
+Query: page next 
+Found in 1 documents.
+score    1 doc   3 : http://cs50tse.cs.dartmouth.edu/tse/toscrape/
+---------------------------------------------------
+Query: sapiens locally amp 
+Found in 0 documents.
+---------------------------------------------------
+Query: contributors OR design AND sapiens 
+Found in 1 documents.
+score    1 doc   2 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/
+---------------------------------------------------
+Query: rip jquery OR soumission AND wikipedia 
+Found in 1 documents.
+score    1 doc   3 : http://cs50tse.cs.dartmouth.edu/tse/toscrape/
+---------------------------------------------------
+Query: suspense politics AND dartmouth 
+Found in 0 documents.
+---------------------------------------------------
+
+# test 2
+./fuzzquery $tseoutput/indexer/indexer.data/index.2  5 1 > testfile
+./fuzzquery: generating 5 queries from 7850 words
+./querier $tseoutput/crawler/crawler.data/data2 $tseoutput/indexer/indexer.data/index.2 < testfile
+Query: crash AND testament 
+Found in 0 documents.
+---------------------------------------------------
+Query: volumes OR viii wisdom OR meeting overwritten 
+Found in 2 documents.
+score    3 doc   6 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/Unix.html
+score    1 doc   5 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/Dartmouth_College.html
+---------------------------------------------------
+Query: other broadcasting OR striking 
+Found in 2 documents.
+score    2 doc   5 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/Dartmouth_College.html
+score    1 doc   3 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/Linked_list.html
+---------------------------------------------------
+Query: timestamp prizes son OR rule OR Faraday OR binary 
+Found in 6 documents.
+score    6 doc   3 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/Linked_list.html
+score    5 doc   4 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/Hash_table.html
+score    5 doc   6 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/Unix.html
+score    2 doc   7 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/C_(programming_language).html
+score    1 doc   8 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/Computer_science.html
+score    1 doc   5 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/Dartmouth_College.html
+---------------------------------------------------
+Query: alumni OR sport lines generated AND resources OR lose 
+Found in 3 documents.
+score   39 doc   5 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/Dartmouth_College.html
+score    1 doc  35 : http://cs50tse.cs.dartmouth.edu/tse/toscrape/catalogue/category/books/health_47/index.html
+score    1 doc  14 : http://cs50tse.cs.dartmouth.edu/tse/toscrape/catalogue/olio_984/index.html
+---------------------------------------------------
+
+./fuzzquery $tseoutput/indexer/indexer.data/index.2  5 5 > testfile
+./fuzzquery: generating 5 queries from 7850 words
+./querier $tseoutput/crawler/crawler.data/data2 $tseoutput/indexer/indexer.data/index.2 < testfile
+Query: carelessly uncontrolled 
+Found in 1 documents.
+score    1 doc   7 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/C_(programming_language).html
+---------------------------------------------------
+Query: cases fantasy grouping 
+Found in 0 documents.
+---------------------------------------------------
+Query: parallel OR bodies AND wheelock 
+Found in 4 documents.
+score    5 doc   8 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/Computer_science.html
+score    2 doc   3 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/Linked_list.html
+score    2 doc   7 : http://cs50tse.cs.dartmouth.edu/tse/wikipedia/C_(programming_language).html
+score    1 doc  23 : http://cs50tse.cs.dartmouth.edu/tse/toscrape/catalogue/the-coming-woman-a-novel-based-on-the-life-of-the-infamous-feminist-victoria-woodhull_993/index.html
+---------------------------------------------------
+Query: monahan faced OR tagged AND francis 
+Found in 0 documents.
+---------------------------------------------------
+Query: circuits places AND untagged 
+Found in 0 documents.
+---------------------------------------------------
+
+rm -f testfile
+rm -f file
+make clean
+make[1]: Entering directory '/thayerfs/home/f004r8d/cs50-dev/lab5-indexer-lizfrey/querier'
+rm -rf *.dSYM  # MacOS debugger info
+rm -f *~ *.o
+rm -f querier fuzzquery
+rm -f core
+make[1]: Leaving directory '/thayerfs/home/f004r8d/cs50-dev/lab5-indexer-lizfrey/querier'
